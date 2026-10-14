@@ -46,8 +46,45 @@ input.f.c{text-align:center;padding:0}
 dialog{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);max-width:460px}
 dialog h3{margin:0 0 8px}
 dialog .hint{color:#667;font-size:13px}
+/* 問卷 */
+#qform{max-width:760px;margin:0 auto;padding:12px 16px 60px}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
+.steps button{background:var(--card);color:var(--ink);border:1px solid var(--line);padding:4px 12px;font-size:14px}
+.steps button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.qcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.qcard h2{margin:0 0 4px;font-size:20px}
+.qcard .sub{color:#667;font-size:14px;margin:0 0 14px}
+.qrow{margin:0 0 14px}
+.qrow>label,.qrow>.l{display:block;font-weight:700;margin-bottom:4px}
+.qrow input[type=text],.qrow input[type=time],.qrow textarea,.qrow select{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+.qrow textarea{min-height:110px;resize:vertical}
+.q3{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.q3 input{width:5.5em!important;text-align:center}
+.qhint{color:#667;font-size:13px;margin-top:3px}
+.qnav{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+.stg{display:grid;grid-template-columns:2em 1fr;gap:6px 8px;align-items:center;margin-bottom:10px;padding:10px;border:1px solid var(--line);border-radius:8px}
+.stg .q3 input.y{width:5em!important}
+.stg .q3 input.m{width:4em!important}
+.satq{margin-bottom:10px}
+.satq .opts{display:flex;gap:8px;flex-wrap:wrap}
+.satq label{border:1px solid var(--line);border-radius:6px;padding:4px 12px;cursor:pointer;background:var(--card)}
+.satq label:has(input:checked){background:var(--acc);color:#fff;border-color:var(--acc)}
+.satq input{display:none}
+.mcard{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}
+.mgrid{display:grid;grid-template-columns:3em 1fr 1fr;gap:4px 8px;margin-top:8px;max-height:420px;overflow:auto}
+.mgrid input{padding:4px 6px!important}
+.pcard{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}
+.pcard img{max-width:100%;max-height:200px;display:block;margin:8px 0}
+body.mode-q main,body.mode-q nav.toc{position:absolute;left:-10000px;top:0;width:900px}
+body.mode-p #qform{display:none}
+body.mode-p .sheet{pointer-events:none}
+body.mode-q .sheet{pointer-events:none}
+#pbar{display:none;max-width:900px;margin:10px auto 0;padding:0 16px;gap:8px}
+body.mode-p #pbar{display:flex}
 @media print{
   @page{size:A4;margin:0}
+  #qform,#pbar{display:none!important}
+  body.mode-q main,body.mode-q nav.toc{position:static!important;left:auto!important;width:auto!important}
   html,body{background:#fff;margin:0}
   header.top,nav.toc,.noprint,#toast,dialog,.addm{display:none!important}
   main{padding:0}
@@ -61,14 +98,18 @@ dialog .hint{color:#667;font-size:13px}
 }
 </style>
 </head>
-<body>
+<body class="mode-q">
 <header class="top">
   <h1>校外實習手冊（就業學程）學生填寫</h1>
+  <button class="sec" onclick="setMode('q')">填寫問卷</button>
+  <button class="sec" onclick="setMode('p')">預覽版面</button>
   <button class="sec" onclick="saveDraft(true)">暫存</button>
   <button class="sec" onclick="exportJson()">下載草稿檔</button>
   <label class="btn sec" style="padding:6px 14px">載入草稿<input type="file" accept=".json" hidden onchange="importJson(this)"></label>
   <button onclick="document.getElementById('dlg').showModal()">完成：輸出 PDF / 寄信</button>
 </header>
+<div id="qform"></div>
+<div id="pbar"><button class="sec" onclick="setMode('q')">← 回到問卷</button><button onclick="document.getElementById('dlg').showModal()">輸出 PDF / 寄信</button></div>
 <nav class="toc" id="toc"></nav>
 <main id="main"></main>
 
@@ -165,13 +206,12 @@ const fixed=(i,t)=>sheet(i,t,"");
 function build(){
   let h=p1+p2+p3+fixed(3,"計畫書(續)");
   h+=months.map((_,i)=>attSheet(i)).join("");
-  h+=`<div class="addm noprint"><button onclick="addMonth()">＋ 增加出勤月份</button> <button class="sec" onclick="delMonth()">－ 刪除最後一個月份</button></div>`;
   h+=fixed(5,"請假單")+p7+p8+fixed(8,"事業單位評分表")+fixed(9,"學校評分檢核表")+fixed(10,"學生問卷")+fixed(11,"問卷(續)")+fixed(12,"機構滿意度調查");
   $("#main").innerHTML=h;
   $$("img.bg").forEach(im=>im.src=IMGS[+im.dataset.bg]);
   $$(".sheet").forEach((s,n)=>s.id="sh"+n);
   $("#toc").innerHTML=$$(".sheet").map(s=>`<a href="#${s.id}">${s.dataset.title}</a>`).join("");
-  restore();
+  restore();buildQ();
 }
 function restore(){
   Object.keys(data).forEach(k=>setAll(k,data[k]));
@@ -187,7 +227,7 @@ function setAll(k,v,except){$$(`[data-k="${k}"]`).forEach(e=>{if(e!==except)e.va
 function renderPhotos(){
   $$(".ph").forEach(l=>{const i=+l.dataset.pi,p=photos[i];$$("img,.x",l).forEach(e=>e.remove());
     if(p&&p.img){const im=document.createElement("img");im.src=p.img;l.prepend(im);const x=document.createElement("button");x.className="x noprint";x.textContent="✕";x.title="移除照片";x.onclick=ev=>{ev.preventDefault();ev.stopPropagation();photos[i].img="";renderPhotos();saveDraft()};l.appendChild(x)}
-    const f=$("input",l);f.onchange=()=>loadPhoto(f,i);});
+    const f=$("input",l);f.onchange=()=>loadPhoto(f,i);});if(window.renderQPhotos)renderQPhotos();
 }
 function loadPhoto(f,i){
   const file=f.files[0];if(!file)return;
@@ -225,7 +265,7 @@ document.addEventListener("click",e=>{
     saveDraft();
   }
 });
-function cnt(){const e=$("[data-k=reflect]"),w=$("#wc");if(e&&w)w.textContent=((e.value||"").replace(/\s/g,"")).length}
+function cnt(){const e=$("[data-k=reflect]"),w=$("#wc");const n=e?((e.value||"").replace(/\s/g,"")).length:0;if(w)w.textContent=n;$$(".qwc").forEach(x=>x.textContent=n)}
 const snapshot=()=>({data,rad,rows,photos,months});
 function saveDraft(show){
   try{store&&store.setItem(KEY,JSON.stringify(snapshot()))}catch(e){if(show)toast("瀏覽器無法暫存，請改用「下載草稿檔」");return}
@@ -255,6 +295,84 @@ function doMail(){
   const n=fname();
   location.href=`mailto:${TEACHER_EMAIL}?subject=${encodeURIComponent("校外實習手冊－"+n)}&body=${encodeURIComponent("老師您好，\n\n附上我填寫完成的校外實習手冊（PDF）。\n姓名／學號："+n+"\n\n請查收，謝謝。")}`;
 }
+/* ===== 問卷模式 ===== */
+let qStep=0, mode="q";
+const QS=[
+ {t:"基本資料",d:"填一次，封面、家長同意書、計畫書、出勤、心得各頁都會自動帶入。",f:[
+  ["k","name","學生姓名"],["k","sid","學號"],["k","deptcls","系別班級","例：公共安全及消防系四年甲班"],["k","teacher","學校輔導老師"],
+  ["k","unit","實習機構名稱"],["k","dept","實習單位／部門"],["k","mentor","機構輔導老師"],
+  ["d3","實習期間（起）",["fy","fm","fd"],"中華民國"],["d3","實習期間（迄）",["ty","tm","td"],"中華民國"],
+  ["d3","封面填寫日期",["cy","cm","cd"],"中華民國"]]},
+ {t:"家長同意書",d:"簽名及蓋章請列印後手寫。",f:[
+  ["k","grade","就讀年級","例：四"],["k","cls","班別","例：甲"],["k","parent","學生家長姓名"],["k","addr","住址"],
+  ["k","homeTel","住家電話"],["k","stuTel","學生手機"],["k","parTel","家長手機"],["d3","同意書日期",["py","pm","pd"],"中華民國"]]},
+ {t:"實習計畫",d:"內容較長時，輸出的 PDF 會自動縮小字體放進表格。",f:[
+  ["a","goal","實習課程目標"],["a","content","實習課程內涵","含符合專業及職務所需之學習內容"],["stages"]]},
+ {t:"出勤記錄",custom:"att"},
+ {t:"實習心得",f:[["a","feature","單位特色"],["a","goal2","實習目標"],["sat"],["a","reflect","心得與建議（200 字以上）","請以四項議題撰寫：1.本實習符合你的期望與需要。2.實習過程中，對機構有何貢獻。3.請自我分析在實習過程中，是否有自我成長。4.給學弟妹的實習建議。",true]]},
+ {t:"實習照片",d:"請上傳 4 張實習照片（實習生請全身入鏡；與師傅工作中、與師傅討論事情、個人工作中），每張說明敘述 10 至 20 字。",custom:"photo"}
+];
+const qv=s=>esc(s==null?"":s);
+function qField(f){
+  const t=f[0];
+  if(t=="k")return `<div class="qrow"><label>${f[2]}</label><input type="text" data-qk="${f[1]}" value="${qv(data[f[1]])}" placeholder="${qv(f[3]||"")}" spellcheck="false"></div>`;
+  if(t=="a")return `<div class="qrow"><label>${f[2]}</label>${f[3]?`<div class="qhint" style="margin:0 0 4px">${f[3]}</div>`:""}<textarea data-qk="${f[1]}" spellcheck="false" ${f[4]?'oninput="cnt()" style="min-height:240px"':""}>${qv(data[f[1]])}</textarea>${f[4]?'<div class="qhint">目前字數：<span class="qwc">0</span></div>':""}</div>`;
+  if(t=="d3")return `<div class="qrow"><div class="l">${f[1]}</div><div class="q3">${f[3]||""}<input type="text" data-qk="${f[2][0]}" value="${qv(data[f[2][0]])}" placeholder="年"> 年 <input type="text" data-qk="${f[2][1]}" value="${qv(data[f[2][1]])}" placeholder="月"> 月 <input type="text" data-qk="${f[2][2]}" value="${qv(data[f[2][2]])}" placeholder="日"> 日</div></div>`;
+  if(t=="stages"){let h='<div class="qrow"><div class="l">各階段期程與實習主題</div>';
+    for(let i=1;i<=5;i++){const g=k=>qv(rows["st"+i+k]);
+      h+=`<div class="stg"><b>${i}</b><div><div class="q3"><input class="y" type="text" data-qr="st${i}ay" value="${g("ay")}" placeholder="年">年<input class="m" type="text" data-qr="st${i}am" value="${g("am")}" placeholder="月">月<input class="m" type="text" data-qr="st${i}ad" value="${g("ad")}" placeholder="日">日 至 <input class="y" type="text" data-qr="st${i}by" value="${g("by")}" placeholder="年">年<input class="m" type="text" data-qr="st${i}bm" value="${g("bm")}" placeholder="月">月<input class="m" type="text" data-qr="st${i}bd" value="${g("bd")}" placeholder="日">日</div><input type="text" style="margin-top:6px;width:100%" data-qr="st${i}t" value="${g("t")}" placeholder="實習主題" spellcheck="false"></div></div>`}
+    return h+'</div>'}
+  if(t=="sat"){let h='<div class="qrow"><div class="l">滿意度</div>';
+    ["實習課程安排","指導人員態度","資訊提供","學習環境"].forEach((n,r)=>{h+=`<div class="satq"><div>${n}</div><div class="opts">`+sat.map(o=>`<label><input type="radio" name="qs${r}" data-qrad="sat${r}" value="${o}" ${rad["sat"+r]==o?"checked":""}>${o}</label>`).join("")+'</div></div>'});
+    return h+'</div>'}
+  return "";
+}
+function qAtt(){
+  let h='<div class="qrow"><div class="qhint">簽到、簽退請填時間；主管簽章欄請列印後由主管簽名。每月會輸出一頁，可增加月份。</div></div>';
+  months.forEach((m,mi)=>{
+    h+=`<div class="mcard"><div class="q3"><b>第 ${mi+1} 個月</b>　實習時間：<input type="text" data-qm="${mi}" data-qf="y" value="${qv(m.y)}" placeholder="年（如 115）"> 年 <input type="text" data-qm="${mi}" data-qf="m" value="${qv(m.m)}" placeholder="月"> 月</div>
+    <div class="q3" style="margin-top:8px">快速套用：上午 <input type="time" data-qdef="${mi}a" value="08:00" style="width:8em"> 下午 <input type="time" data-qdef="${mi}p" value="17:00" style="width:8em"> <button class="sec" onclick="qApplyAtt(${mi})">填入 1–31 日</button> <button class="sec" onclick="qClearAtt(${mi})">清除</button></div>
+    <div class="mgrid"><b>日</b><b>上午簽到</b><b>下午簽退</b>`;
+    for(let d=1;d<=31;d++)h+=`<span>${d}</span><input type="time" data-qr="a${mi}_${d}_1" value="${qv(rows[`a${mi}_${d}_1`])}"><input type="time" data-qr="a${mi}_${d}_2" value="${qv(rows[`a${mi}_${d}_2`])}">`;
+    h+='</div></div>'});
+  return h+`<div class="q3"><button onclick="addMonth()">＋ 增加月份</button> <button class="sec" onclick="delMonth()">－ 刪除最後一個月份</button></div>`;
+}
+function qApplyAtt(mi){
+  const a=$(`[data-qdef="${mi}a"]`).value,p=$(`[data-qdef="${mi}p"]`).value;
+  for(let d=1;d<=31;d++){rows[`a${mi}_${d}_1`]=a;rows[`a${mi}_${d}_2`]=p}
+  syncRows();buildQ();saveDraft();toast("已填入")}
+function qClearAtt(mi){for(let d=1;d<=31;d++){delete rows[`a${mi}_${d}_1`];delete rows[`a${mi}_${d}_2`]}syncRows();buildQ();saveDraft()}
+function syncRows(){$$(".sheet [data-r]").forEach(e=>e.value=rows[e.dataset.r]||"")}
+function qPhoto(){
+  let h="";for(let i=0;i<4;i++){const p=photos[i]||{};
+    h+=`<div class="pcard"><b>照片 ${i+1}</b><div id="qph${i}"></div><div class="qrow" style="margin:8px 0 0"><input type="file" accept="image/*" data-qpi="${i}"></div><div class="qrow" style="margin:8px 0 0"><label>說明（10–20 字）</label><input type="text" data-qpc="${i}" value="${qv(p.cap)}" spellcheck="false"></div></div>`}
+  return h;
+}
+function renderQPhotos(){for(let i=0;i<4;i++){const b=$("#qph"+i);if(!b)continue;const p=photos[i];b.innerHTML=p&&p.img?`<img src="${p.img}"><button class="sec" onclick="qRmPhoto(${i})">移除照片</button>`:'<div class="qhint">尚未選擇照片</div>'}}
+function qRmPhoto(i){photos[i].img="";renderPhotos();saveDraft()}
+function buildQ(){
+  const q=$("#qform");if(!q)return;
+  const s=QS[qStep];
+  let h='<div class="steps">'+QS.map((x,i)=>`<button class="${i==qStep?"on":""}" onclick="qGo(${i})">${i+1} ${x.t}</button>`).join("")+'</div>';
+  h+=`<div class="qcard"><h2>${qStep+1}. ${s.t}</h2>${s.d?`<p class="sub">${s.d}</p>`:""}`;
+  if(s.custom=="att")h+=qAtt();else if(s.custom=="photo")h+=qPhoto();else h+=s.f.map(qField).join("");
+  h+='</div><div class="qnav">'+(qStep>0?'<button class="sec" onclick="qGo(qStep-1)">← 上一步</button>':'<span></span>')+(qStep<QS.length-1?'<button onclick="qGo(qStep+1)">下一步 →</button>':'<button onclick="setMode(\'p\')">完成，預覽版面 →</button>')+'</div>';
+  q.innerHTML=h;
+  $$("[data-qpi]",q).forEach(f=>f.onchange=()=>loadPhoto(f,+f.dataset.qpi));
+  renderQPhotos();cnt();
+}
+function qGo(i){qStep=i;buildQ();scrollTo(0,0)}
+function setMode(m){mode=m;document.body.className="mode-"+m;if(m=="p"){fitAll();scrollTo(0,0)}else{buildQ();scrollTo(0,0)}}
+document.addEventListener("input",e=>{
+  const t=e.target,d=t.dataset;if(!d)return;
+  if(d.qk!==undefined){data[d.qk]=t.value;setAll(d.qk,t.value);$$(`.sheet textarea[data-k="${d.qk}"]`).forEach(fit);cnt();saveDraft()}
+  else if(d.qr!==undefined){rows[d.qr]=t.value;$$(`.sheet [data-r="${d.qr}"]`).forEach(x=>x.value=t.value);saveDraft()}
+  else if(d.qm!==undefined){months[d.qm][d.qf]=t.value;$$(`.sheet [data-mi="${d.qm}"][data-f="${d.qf}"]`).forEach(x=>x.value=t.value);saveDraft()}
+  else if(d.qpc!==undefined){(photos[d.qpc]=photos[d.qpc]||{img:"",cap:""}).cap=t.value;$$(`.sheet [data-pc="${d.qpc}"]`).forEach(x=>x.value=t.value);saveDraft()}
+});
+document.addEventListener("change",e=>{
+  const t=e.target;if(t.dataset&&t.dataset.qrad){rad[t.dataset.qrad]=t.value;$$(`.sheet [data-rad="${t.dataset.qrad}"]`).forEach(x=>x.checked=x.value==t.value);saveDraft()}
+});
 $("#mailShow").textContent=TEACHER_EMAIL;
 try{const s=store&&store.getItem(KEY);if(s){const o=JSON.parse(s);data=o.data||{};rad=o.rad||{};rows=o.rows||{};photos=o.photos||[];months=(o.months&&o.months.length)?o.months:[{y:"",m:""}]}}catch(e){}
 build();

@@ -198,11 +198,29 @@ pb.forEach((b,i)=>{p8in+=`<label class="ph" data-pi="${i}" style="${pos(...b)}">
   const c=cb[i];p8in+=`<div class="cap" style="${pos(...c)}">說明：<input class="f" spellcheck="false" type="text" data-pc="${i}" style="--f:11"></div>`});
 const p8=sheet(7,"實習記錄照片",p8in);
 
+/* P11–P12 學生問卷 */
+const LK=["非常不同意","不同意","普通","同意","非常同意"], lkx=[798,870,942,1013,1085];
+const cyOf=y=>Math.round((y-3.5)*2.0829);
+const q11rows={2:532.6,3:551.2,4:569.6,5:588.1,6:627.1,7:645.6,8:664.1,9:682.6,10:701.2,11:719.6,12:758.6};
+const q12rows={13:148.6,14:176.2,15:203.6,16:222.1,17:249.6,18:277.1};
+const SYS=["日四技","日二技","進四技","進二技","進修學院","碩士"], Q19=["暑期","學期","學年"], Q20=["一年級","二年級","三年級","四年級","五年級"];
+let p11in="";
+SYS.forEach((v,i)=>p11in+=CK("sys",v,[279,429,565,716,866,1015][i],590,24));
+p11in+=T("qdept",268,612,74,30,{f:9})+T("grade",444,612,46,30,{c:1,f:11})+T("cls",532,612,42,30,{c:1,f:11})+T("sid",720,612,106,30,{f:11})+T("name",920,612,168,30,{f:11})+
+  T("fy",396,650,34,30,{c:1,f:10})+T("fm",458,650,34,30,{c:1,f:10})+T("fd",521,650,34,30,{c:1,f:10})+T("ty",608,650,34,30,{c:1,f:10})+T("tm",671,650,34,30,{c:1,f:10})+T("td",733,650,34,30,{c:1,f:10});
+p11in+=CK("q1","有",836,1025)+CK("q1","沒有",836,1063);
+for(const n in q11rows)LK.forEach((v,i)=>p11in+=CK("q"+n,v,lkx[i],cyOf(q11rows[n])));
+let p12in="";
+for(const n in q12rows)LK.forEach((v,i)=>p12in+=CK("q"+n,v,lkx[i],cyOf(q12rows[n])));
+Q19.forEach((v,i)=>p12in+=CK("q19",v,lkx[i],651));
+Q20.forEach((v,i)=>p12in+=CK("q20",v,[798,870,942,1013,1073][i],765));
+p12in+=`<textarea class="f" spellcheck="false" data-k="advice" data-fit="13" style="${pos(118,976,966,117)};--f:13;line-height:${39/W*100}cqw;padding:0 .3em"></textarea>`;
+const p11=sheet(10,"學生問卷",p11in), p12=sheet(11,"學生問卷(續)",p12in);
 const fixed=(i,t)=>sheet(i,t,"");
 function build(){
   let h=p1+p2+p3+fixed(3,"計畫書(續)");
   h+=months.map((_,i)=>attSheet(i)).join("");
-  h+=fixed(5,"請假單")+p7+p8+fixed(8,"事業單位評分表")+fixed(9,"學校評分檢核表")+fixed(10,"學生問卷")+fixed(11,"問卷(續)")+fixed(12,"機構滿意度調查");
+  h+=fixed(5,"請假單")+p7+p8+fixed(8,"事業單位評分表")+fixed(9,"學校評分檢核表")+p11+p12+fixed(12,"機構滿意度調查");
   $("#main").innerHTML=h;
   $$("img.bg").forEach(im=>im.src=IMGS[+im.dataset.bg]);
   $$(".sheet").forEach((s,n)=>s.id="sh"+n);
@@ -306,7 +324,9 @@ const QS=[
   ["a","goal","實習課程目標"],["a","content","實習課程內涵","含符合專業及職務所需之學習內容"],["stages"]]},
  {t:"出勤記錄",custom:"att"},
  {t:"實習心得",f:[["a","feature","單位特色"],["a","goal2","實習目標"],["sat"],["a","reflect","心得與建議（200 字以上）","請以四項議題撰寫：1.本實習符合你的期望與需要。2.實習過程中，對機構有何貢獻。3.請自我分析在實習過程中，是否有自我成長。4.給學弟妹的實習建議。",true]]},
- {t:"實習照片",d:"請上傳 4 張實習照片（實習生請全身入鏡；與師傅工作中、與師傅討論事情、個人工作中），每張說明敘述 10 至 20 字。",custom:"photo"}
+ {t:"實習照片",d:"請上傳 4 張實習照片（實習生請全身入鏡；與師傅工作中、與師傅討論事情、個人工作中），每張說明敘述 10 至 20 字。",custom:"photo"},
+ {t:"學生問卷",d:"嘉南藥理大學學生校外實習問卷調查表。系別、班級、學號、姓名、實習期間會沿用前面填寫的資料。",f:[
+  ["sys"],["k","qdept","系別"],["k","grade","年級","例：四"],["k","cls","班別","例：甲"],["lik"],["a","advice","其他建議"]]}
 ];
 const qv=s=>esc(s==null?"":s);
 function qField(f){
@@ -321,7 +341,17 @@ function qField(f){
   if(t=="sat"){let h='<div class="qrow"><div class="l">滿意度</div>';
     ["實習課程安排","指導人員態度","資訊提供","學習環境"].forEach((n,r)=>{h+=`<div class="satq"><div>${n}</div><div class="opts">`+sat.map(o=>`<label><input type="radio" name="qs${r}" data-qrad="sat${r}" value="${o}" ${rad["sat"+r]==o?"checked":""}>${o}</label>`).join("")+'</div></div>'});
     return h+'</div>'}
-  return "";
+  if(t=="sys")return `<div class="qrow"><div class="l">一、學制</div><div class="satq"><div class="opts">`+SYS.map(o=>`<label><input type="radio" name="qsys" data-qrad="sys" value="${o}" ${rad.sys==o?"checked":""}>${o}</label>`).join("")+`</div></div></div>`;
+  if(t=="lik"){
+    const QT={1:"我有參加實習前辦理的相關講習或說明會。",2:"實習職前講習或說明會對我有所助益。",3:"實習前學校提供我完善的實習資訊或諮詢管道。",4:"實習前我已瞭解實習時相關的權利及義務。",5:"實習前我已瞭解職場倫理。",6:"實習機構提供我專業且安全的實習環境。",7:"我在參與校外實習課程前，已了解實習契約內容。",8:"實習內容與我在校所學的專業是有關聯的。",9:"在校所學專業技能有助於實習工作中的運用。",10:"實習機構有人來協助指導實習上遇到的困難。",11:"學校老師曾來訪視及關心我的實習狀況。",12:"實習後我覺得有提升自己解決實務問題的能力。",13:"透過這次實習，有助於我對職場工作態度的了解。",14:"經過這次實習經驗，我會鼓勵學弟妹參與校外實習。",15:"我認為學校安排之校外實習課程學習時數足夠。",16:"我認為實習對畢業後尋找工作有所幫助。",17:"未來若實習機構願意聘用我，我會有意願前往任職。",18:"整體而言，實習課程規劃與安排對我有所幫助。",19:"你認為校外實習課程用哪種類型辦理較為適合？",20:"你認為校外實習課程在哪個年級辦理較為合適？"};
+    const grp={1:"實習前",6:"實習中",12:"實習後",19:"其他"};
+    const opt=(n,vs)=>`<div class="opts">`+vs.map(o=>`<label><input type="radio" name="qq${n}" data-qrad="q${n}" value="${o}" ${rad["q"+n]==o?"checked":""}>${o}</label>`).join("")+`</div>`;
+    let h='<div class="qrow"><div class="l">二、實習狀況調查</div><div class="qhint">請依你的實際感受選擇，再點一次同一選項不會取消，要改請選其他選項。</div></div>';
+    for(let n=1;n<=20;n++){
+      if(grp[n])h+=`<div class="l" style="margin:14px 0 6px;padding:3px 10px;background:rgba(31,95,168,.12);border-radius:4px">${grp[n]}</div>`;
+      h+=`<div class="satq"><div>(${n}) ${QT[n]}</div>`+(n==1?opt(n,["有","沒有"]):n==19?opt(n,Q19):n==20?opt(n,Q20):opt(n,LK))+`</div>`;}
+    return h;
+  }  return "";
 }
 function qAtt(){
   let h='<div class="qrow"><div class="qhint">每個月會輸出一頁出勤記錄表，只需填寫年、月；簽到、簽退與主管簽章欄請列印後手寫。實習機構、實習單位、學生姓名會自動帶入。</div></div>';

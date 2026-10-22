@@ -106,7 +106,7 @@ body.mode-p #pbar{display:flex}
   <button class="sec" onclick="saveDraft(true)">暫存</button>
   <button class="sec" onclick="exportJson()">下載草稿檔</button>
   <label class="btn sec" style="padding:6px 14px">載入草稿<input type="file" accept=".json" hidden onchange="importJson(this)"></label>
-  <button onclick="document.getElementById('dlg').showModal()">完成：輸出 PDF / 寄信</button>
+  <button onclick="sharePdf()">PDF 分享</button>`n  <button onclick="document.getElementById('dlg').showModal()">完成：輸出 PDF / 寄信</button>
 </header>
 <div id="qform"></div>
 <div id="pbar"><button class="sec" onclick="setMode('q')">← 回到問卷</button><button onclick="document.getElementById('dlg').showModal()">輸出 PDF / 寄信</button></div>
@@ -120,7 +120,7 @@ body.mode-p #pbar{display:flex}
   <span class="hint">在列印視窗中，「目的地」選擇「另存為 PDF」，「邊界」選擇「無」，按儲存。</span></p>
   <p><b>步驟 2</b>　<button onclick="doMail()">開啟郵件寄給老師</button><br>
   <span class="hint">會開啟電腦的郵件程式，收件人已填好，請把剛才存的 PDF 以「附件」加入後送出。若沒有郵件程式，請改用 Gmail／學校信箱，手動寄到下方信箱。</span></p>
-  <p class="hint">收件信箱：<b id="mailShow"></b></p>
+  <p><b>手機分享</b>　<button id="shareBtn" onclick="sharePdf()">PDF 分享（手機）</button><br>\n  <span class="hint">不用先存檔：直接產生 PDF 並開啟手機的分享選單，可選 LINE、Gmail、雲端硬碟等傳給老師。電腦上若不支援，會自動下載 PDF。</span></p>\n  <p class="hint">收件信箱：<b id="mailShow"></b></p>
   <div style="text-align:right"><button class="sec" onclick="document.getElementById('dlg').close()">關閉</button></div>
 </dialog>
 <div id="toast"></div>
@@ -395,6 +395,93 @@ document.addEventListener("input",e=>{
 document.addEventListener("change",e=>{
   const t=e.target;if(t.dataset&&t.dataset.qrad){rad[t.dataset.qrad]=t.value;$$(`.sheet [data-rad="${t.dataset.qrad}"]`).forEach(x=>x.checked=x.value==t.value);saveDraft()}
 });
+/* ===== PDF 分享（手機）：不用列印視窗，直接在瀏覽器內產生 PDF 檔 ===== */
+const FONT='"DFKai-SB","標楷體","BiauKai","Kaiti TC","Noto Serif CJK TC","Noto Serif TC","Songti TC","PMingLiU",serif';
+const pct=(s,k)=>parseFloat(s[k]);
+function boxOf(el){const s=el.style;return {x:pct(s,"left")*W/100,y:pct(s,"top")*H/100,w:pct(s,"width")*W/100,h:pct(s,"height")*H/100}}
+function fpx(el){const f=parseFloat(el.style.getPropertyValue("--f"))||12;return f*W/595.32}
+function wrapLines(ctx,text,maxW){
+  const out=[];String(text).split(/\r?\n/).forEach(par=>{let line="";
+    for(const ch of par){const w=ctx.measureText(line+ch).width;if(w>maxW&&line){out.push(line);line=ch}else line+=ch}
+    out.push(line)});
+  return out;
+}
+function drawSheet(sheet){
+  const c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");
+  g.fillStyle="#fff";g.fillRect(0,0,W,H);
+  const bg=$("img.bg",sheet);if(bg&&bg.complete)g.drawImage(bg,0,0,W,H);
+  g.fillStyle="#000";g.strokeStyle="#000";
+  [...sheet.children].forEach(el=>{
+    if(el.tagName=="IMG")return;
+    const cl=el.classList;
+    if(cl.contains("cov")){
+      const b=boxOf(el);g.fillStyle="#fff";g.fillRect(b.x,b.y,b.w,b.h);g.fillStyle="#000";
+      let s="";el.childNodes.forEach(n=>{s+=n.nodeType==3?n.textContent:(n.value||"　")+" "});
+      g.font=`${13*W/595.32}px ${FONT}`;g.textAlign="center";g.textBaseline="middle";g.fillText(s.replace(/ +/g," "),b.x+b.w/2,b.y+b.h/2);
+    }else if(cl.contains("cap")){
+      const b=boxOf(el);g.fillStyle="#fff";g.fillRect(b.x,b.y,b.w,b.h);g.fillStyle="#000";
+      const f=11*W/595.32;g.font=`${f}px ${FONT}`;g.textAlign="left";g.textBaseline="middle";
+      g.fillText("說明："+($("input",el).value||""),b.x+f*.8,b.y+b.h/2);
+    }else if(cl.contains("ck")){
+      const i=$("input",el);if(i&&i.checked){const b=boxOf(el);g.lineWidth=b.w*.14;g.lineCap="round";g.lineJoin="round";
+        g.beginPath();g.moveTo(b.x+b.w*.14,b.y+b.h*.55);g.lineTo(b.x+b.w*.40,b.y+b.h*.80);g.lineTo(b.x+b.w*.88,b.y+b.h*.2);g.stroke()}
+    }else if(cl.contains("ph")){
+      const im=$("img",el);if(im&&im.complete&&im.naturalWidth){const b=boxOf(el);g.fillStyle="#fff";g.fillRect(b.x,b.y,b.w,b.h);
+        const k=Math.min(b.w/im.naturalWidth,b.h/im.naturalHeight),w=im.naturalWidth*k,h=im.naturalHeight*k;g.drawImage(im,b.x+(b.w-w)/2,b.y+(b.h-h)/2,w,h)}
+    }else if(cl.contains("f")){
+      const v=el.value;if(!v)return;const b=boxOf(el),f=fpx(el);g.fillStyle="#000";g.font=`${f}px ${FONT}`;
+      if(el.tagName=="TEXTAREA"){
+        const adv=el.dataset.k=="advice",lh=adv?39:f*1.35,padX=adv?f*.3:f*.5,padY=adv?0:f*.3;
+        g.textAlign="left";g.textBaseline="alphabetic";
+        wrapLines(g,v,b.w-padX*2).forEach((ln,i)=>{const y=b.y+padY+lh*(i+1)-(lh-f)/2-f*.18;if(y<b.y+b.h+lh*.5)g.fillText(ln,b.x+padX,y)});
+      }else{
+        const ctr=cl.contains("c");g.textBaseline="middle";g.textAlign=ctr?"center":"left";
+        g.fillText(v,ctr?b.x+b.w/2:b.x+f*.3,b.y+b.h/2+f*.04,b.w-(ctr?0:f*.3));
+      }
+    }
+  });
+  return c;
+}
+const u8=s=>new TextEncoder().encode(s);
+async function buildPdf(){
+  fitAll();
+  const sheets=$$(".sheet"),jpgs=[];
+  for(const s of sheets){const c=drawSheet(s);const bin=atob(c.toDataURL("image/jpeg",.88).split(",")[1]),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);jpgs.push(a);await new Promise(r=>setTimeout(r,0))}
+  const parts=[],off=[];let pos=0;const put=x=>{const a=typeof x=="string"?u8(x):x;parts.push(a);pos+=a.length};
+  const obj=(n,body)=>{off[n]=pos;put(`${n} 0 obj\n`);put(body);put("\nendobj\n")};
+  const n=jpgs.length,PW=595.28,PH=841.89;
+  put("%PDF-1.4\n");
+  obj(1,"<</Type/Catalog/Pages 2 0 R>>");
+  obj(2,`<</Type/Pages/Kids[${jpgs.map((_,i)=>`${5+3*i} 0 R`).join(" ")}]/Count ${n}>>`);
+  jpgs.forEach((j,i)=>{
+    const im=3+3*i,ct=4+3*i,pg=5+3*i;
+    off[im]=pos;put(`${im} 0 obj\n<</Type/XObject/Subtype/Image/Width ${W}/Height ${H}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${j.length}>>\nstream\n`);put(j);put("\nendstream\nendobj\n");
+    const cs=`q ${PW} 0 0 ${PH} 0 0 cm /Im0 Do Q`;
+    obj(ct,`<</Length ${cs.length}>>\nstream\n${cs}\nendstream`);
+    obj(pg,`<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${PW} ${PH}]/Resources<</XObject<</Im0 ${im} 0 R>>>>/Contents ${ct} 0 R>>`);
+  });
+  const total=3+3*n,xr=pos;
+  put(`xref\n0 ${total}\n0000000000 65535 f \n`);
+  for(let i=1;i<total;i++)put(String(off[i]).padStart(10,"0")+" 00000 n \n");
+  put(`trailer\n<</Size ${total}/Root 1 0 R>>\nstartxref\n${xr}\n%%EOF`);
+  return new Blob(parts,{type:"application/pdf"});
+}
+async function sharePdf(){
+  const btn=$("#shareBtn");if(btn){btn.disabled=true;btn.textContent="產生 PDF 中…"}
+  toast("正在產生 PDF，請稍候…");
+  try{
+    const blob=await buildPdf(),name=fname()+".pdf",file=new File([blob],name,{type:"application/pdf"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:"校外實習手冊－"+fname(),text:"老師您好，附上我的校外實習手冊 PDF（"+fname()+"），請查收。"});toast("已開啟分享選單")}
+      catch(e){if(e&&e.name!="AbortError"){savePdf(blob,name)}}
+    }else savePdf(blob,name);
+  }catch(e){toast("產生 PDF 失敗："+(e&&e.message||e))}
+  if(btn){btn.disabled=false;btn.textContent="PDF 分享（手機）"}
+}
+function savePdf(blob,name){
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
+  toast("這個裝置不能直接分享，已下載 PDF；請用 LINE、Gmail 等傳給老師");
+}
 $("#mailShow").textContent=TEACHER_EMAIL;
 try{const s=store&&store.getItem(KEY);if(s){const o=JSON.parse(s);data=o.data||{};rad=o.rad||{};rows=o.rows||{};photos=o.photos||[];months=(o.months&&o.months.length)?o.months:[{y:"",m:""}]}}catch(e){}
 build();

@@ -108,7 +108,8 @@ body.mode-p #pbar{display:flex}
   <button class="sec" onclick="saveDraft(true)">暫存</button>
   <button class="sec" onclick="exportJson()">下載草稿檔</button>
   <label class="btn sec" style="padding:6px 14px">載入草稿<input type="file" accept=".json" hidden onchange="importJson(this)"></label>
-  <button onclick="sharePdf()">PDF 分享</button>`n  <button onclick="document.getElementById('dlg').showModal()">完成：輸出 PDF / 寄信</button>
+  <button onclick="sharePdf()">PDF 分享</button>
+  <button onclick="document.getElementById('dlg').showModal()">完成：輸出 PDF / 寄信</button>
 </header>
 <div id="qform"></div>
 <div id="pbar"><button class="sec" onclick="setMode('q')">← 回到問卷</button><button onclick="document.getElementById('dlg').showModal()">輸出 PDF / 寄信</button></div>
@@ -347,7 +348,7 @@ let qStep=0, mode="q";
   ["k","unit","實習機構名稱"],["k","dept","實習單位／部門"],["k","mentor","機構輔導老師"],
   ["d3","實習期間（起）",["fy","fm","fd"],"中華民國"],["d3","實習期間（迄）",["ty","tm","td"],"中華民國"],
   ["d3","封面填寫日期",["cy","cm","cd"],"中華民國"]]},
- {t:"家長同意書",d:"簽名及蓋章請列印後手寫。<b style=\"color:#e03131\">家長務必再簽章電腦打字不算</b>",f:[
+ {t:"家長同意書",d:"<b style=\"color:#e03131;font-size:22px;line-height:1.5\">家長務必再簽章，電腦打字不算。</b>",f:[
   ["k","grade","就讀年級","例：四"],["k","cls","班別","例：甲"],["k","parent","學生家長姓名"],["k","addr","住址"],
   ["k","homeTel","住家電話"],["k","stuTel","學生手機"],["k","parTel","家長手機"],["d3","同意書日期",["py","pm","pd"],"中華民國"]]},
  {t:"實習計畫",d:"內容較長時，輸出的 PDF 會自動縮小字體放進表格。",f:[
